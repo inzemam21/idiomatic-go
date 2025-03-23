@@ -67,7 +67,7 @@ func main() {
 	}
 	defer db.Close()
 
-	userService := services.NewUserService(db.Queries, logger)
+	userService := services.NewUserService(db, logger)
 	userHandler := handlers.NewUserHandler(userService, logger, config.JWTSecret)
 
 	router := gin.New()
