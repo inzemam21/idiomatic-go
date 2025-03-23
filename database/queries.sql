@@ -28,3 +28,8 @@ RETURNING *;
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;
+
+-- name: CreateAuditLog :one
+INSERT INTO audit_logs (user_id, action)
+VALUES ($1, $2)
+RETURNING *;

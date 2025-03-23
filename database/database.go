@@ -4,14 +4,15 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
 
-// DB holds the database connection pool
+// DB holds the database connection pool and transaction methods
 type DB struct {
 	Pool    *pgxpool.Pool
-	Queries *Queries // sqlc-generated queries
+	Queries *Queries
 }
 
 // Config holds database connection settings
@@ -31,7 +32,6 @@ func NewDB(ctx context.Context, config Config, logger *logrus.Logger) (*DB, erro
 		return nil, err
 	}
 
-	// Apply pool settings
 	poolConfig.MaxConns = config.MaxConns
 	poolConfig.MinConns = config.MinConns
 	poolConfig.MaxConnLifetime = config.MaxConnLifetime
@@ -43,14 +43,13 @@ func NewDB(ctx context.Context, config Config, logger *logrus.Logger) (*DB, erro
 		return nil, err
 	}
 
-	// Test the connection
 	if err := pool.Ping(ctx); err != nil {
 		logger.WithError(err).Error("failed to ping database")
 		pool.Close()
 		return nil, err
 	}
 
-	queries := New(pool) // sqlc-generated queries
+	queries := New(pool)
 
 	logger.Info("Database connection pool initialized successfully")
 	return &DB{
@@ -64,4 +63,28 @@ func (db *DB) Close() {
 	if db.Pool != nil {
 		db.Pool.Close()
 	}
+}
+
+// BeginTx starts a transaction
+func (db *DB) BeginTx(ctx context.Context) (pgx.Tx, error) {
+	return db.Pool.Begin(ctx)
+}
+
+// WithTx executes a function within a transaction
+func (db *DB) WithTx(ctx context.Context, fn func(queries *Queries) error) error {
+	tx, err := db.BeginTx(ctx)
+	if err != nil {
+		return err
+	}
+
+	queriesWithTx := New(tx)
+	err = fn(queriesWithTx)
+	if err != nil {
+		if rbErr := tx.Rollback(ctx); rbErr != nil {
+			return rbErr
+		}
+		return err
+	}
+
+	return tx.Commit(ctx)
 }

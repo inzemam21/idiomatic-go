@@ -9,6 +9,29 @@ import (
 	"context"
 )
 
+const createAuditLog = `-- name: CreateAuditLog :one
+INSERT INTO audit_logs (user_id, action)
+VALUES ($1, $2)
+RETURNING id, user_id, action, created_at
+`
+
+type CreateAuditLogParams struct {
+	UserID int32  `json:"user_id"`
+	Action string `json:"action"`
+}
+
+func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (AuditLog, error) {
+	row := q.db.QueryRow(ctx, createAuditLog, arg.UserID, arg.Action)
+	var i AuditLog
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Action,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, email, password_hash)
 VALUES ($1, $2, $3)
