@@ -1,0 +1,7 @@
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
