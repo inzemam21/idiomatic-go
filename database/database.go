@@ -4,18 +4,17 @@ import (
 	"context"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 )
 
-// DB holds the database connection pool and transaction methods
 type DB struct {
 	Pool    *pgxpool.Pool
 	Queries *Queries
 }
 
-// Config holds database connection settings
 type Config struct {
 	DBConn          string
 	MaxConns        int32
@@ -24,7 +23,6 @@ type Config struct {
 	MaxConnIdleTime time.Duration
 }
 
-// NewDB initializes a new database connection pool
 func NewDB(ctx context.Context, config Config, logger *logrus.Logger) (*DB, error) {
 	poolConfig, err := pgxpool.ParseConfig(config.DBConn)
 	if err != nil {
@@ -36,6 +34,7 @@ func NewDB(ctx context.Context, config Config, logger *logrus.Logger) (*DB, erro
 	poolConfig.MinConns = config.MinConns
 	poolConfig.MaxConnLifetime = config.MaxConnLifetime
 	poolConfig.MaxConnIdleTime = config.MaxConnIdleTime
+	poolConfig.ConnConfig.Tracer = otelpgx.NewTracer() // Instrument DB for tracing
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
